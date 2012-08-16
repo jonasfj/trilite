@@ -2,7 +2,8 @@
 #include "config.h"
 #include "varint.h"
 #include "hash.h"
-#include "expr.h"
+#include "match.h"
+#include "cursor.h"
 
 const sqlite3_api_routines *sqlite3_api;
 
@@ -86,7 +87,7 @@ int triliteConnect(sqlite3 *db, void *pAux, int argc, const char *const *argv, s
     return rc;
   
   // Declare virtual table
-  rc = sqlite3_declare_vtab(db, "CREATE TABLE x(id INTEGER PRIMARY KEY, text TEXT)");
+  rc = sqlite3_declare_vtab(db, "CREATE TABLE x(id INTEGER PRIMARY KEY, text TEXT, contents HIDDEN)");
   if(rc != SQLITE_OK)
     return rc;
   
@@ -142,6 +143,13 @@ int triliteUpdate(sqlite3_vtab* pVtab, int argc, sqlite3_value **argv, sqlite_in
   int rc = SQLITE_OK;
   int type = sqlite3_value_type(argv[0]);
   
+  // TODO Handle errors better, ie. not missing values and stuff, currently NOT
+  // handled at all
+  
+  // With respect to the HIDDEN contents column we simply ignore whatever value
+  // is provided for it, maybe it would be better to raise an error on insert of
+  // a none NULL value in this column.
+
   // Delete row argv[0]
   if(argc == 1){
     log("Deleting row: %lli", sqlite3_value_int64(argv[0]));
@@ -211,7 +219,7 @@ int triliteUpdate(sqlite3_vtab* pVtab, int argc, sqlite3_value **argv, sqlite_in
     
     return rc;
   }
-  assert(0);
+  assert(false);
   return SQLITE_INTERNAL;
 }
 
@@ -287,7 +295,7 @@ int triliteBestIndex(sqlite3_vtab *pVtab, sqlite3_index_info *pInfo){
     if(!pInfo->aConstraint[i].usable) continue;
     
     // Check if there's a match we can use
-    if(pInfo->aConstraint[i].iColumn == 1 &&
+    if(pInfo->aConstraint[i].iColumn == 2 &&
        pInfo->aConstraint[i].op == SQLITE_INDEX_CONSTRAINT_MATCH &&
        pInfo->estimatedCost > COST_MATCH_SCAN){
       pInfo->idxNum         = IDX_MATCH_SCAN;
@@ -319,7 +327,7 @@ int triliteBestIndex(sqlite3_vtab *pVtab, sqlite3_index_info *pInfo){
       if(!pInfo->aConstraint[i].usable) continue;
 
       // If this was a match constraint use it!
-      if(pInfo->aConstraint[i].iColumn == 1 &&
+      if(pInfo->aConstraint[i].iColumn == 2 &&
        pInfo->aConstraint[i].op == SQLITE_INDEX_CONSTRAINT_MATCH){
         pInfo->aConstraintUsage[i].argvIndex = argvIndex++;
         pInfo->aConstraintUsage[i].omit = 0;  // Can't omit
@@ -380,7 +388,20 @@ int triliteBestIndex(sqlite3_vtab *pVtab, sqlite3_index_info *pInfo){
   return SQLITE_OK;
 }
 
-/** Overload the match function */
+/** Overload the match function
+ *
+ * Arguments to the MATCH operator is available when filtering the results,
+ * we could easily do exact matching in the triliteNext function for the cursor
+ * however, we wish to postpone this operation to the last possible moment,
+ * hoping that sqlite might skip some of the results as it joins tables.
+ * In order to ensure that other operators are applied before the MATCH operator
+ * place the MATCH operator as the right-most term in your WHERE clause.
+ * 
+ * At the moment sqlite does not feature any strategies for communicating the
+ * cost of respective scalar functions, so it's the responsibility of the
+ * developer to order the scalar functions in order from cheap to expensive.
+ * (Note, that selectivity might also be relevant in such considerations).
+ */
 int triliteFindFunction(sqlite3_vtab* pVtab, int nArg, const char* zName,
                                void (**pxFunc)(sqlite3_context*, int, sqlite3_value**), void **ppUserData){
   // Our match function overload is called match and takes two parameters
@@ -389,7 +410,11 @@ int triliteFindFunction(sqlite3_vtab* pVtab, int nArg, const char* zName,
   // can release this structure again. In any event, we'll just compile the regular expression twice, once in
   // filter to get substrings we can filter for, and once in the match function to extract exact matches.
   if(strcmp("match", zName) == 0 && nArg == 2){
-    *pxFunc = exprMatchFunction;
+    *pxFunc = matchFunction;    // See match.c
+    return 1;
+  }
+  if(strcmp("extents", zName) == 0 && nArg == 1){
+    *pxFunc = extentsFunction;  // See cursor.c
     return 1;
   }
   return 0;

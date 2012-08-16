@@ -1,6 +1,6 @@
 CFLAGS	:= -Ire2/ $(shell pkg-config --cflags sqlite3) -Wall -fPIC
 LDFLAGS := -Lre2/obj -lre2 $(shell pkg-config --libs sqlite3) -shared
-SOURCES := kmp.c scanstr.c varint.c hash.c expr.c regexp.cpp cursor.c vtable.c trilite.c
+SOURCES := kmp.c scanstr.c varint.c hash.c expr.c match.c regexp.cpp cursor.c vtable.c trilite.c
 OBJECTS := $(patsubst %.cpp,%.o,$(patsubst %.c,%.o,$(SOURCES))) 
 all: debug
 debug: CFLAGS += -g

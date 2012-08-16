@@ -2,10 +2,7 @@
 #include "vtable.h"
 #include "cursor.h"
 #include "varint.h"
-#include "vtable.h"
 #include "regexp.h"
-#include "kmp.h"
-#include "scanstr.h"
 
 const sqlite3_api_routines *sqlite3_api;
 
@@ -46,8 +43,11 @@ struct expr{
   } expr;
 };
 
-/** Parse a sequence of patterns that must hold into a single expression */
-int exprParsePatterns(expr **ppExpr, trilite_vtab *pTrgVtab, int argc, sqlite3_value **argv){
+/** Parse a sequence of patterns that must hold into a single expression
+ * Return *ppExpr = NULL and *pAll = true, if a full table scan is required
+ * if *ppExpr = NULL and *pAll = false, implies that nothing matches the
+ * patterns, ie. resultset is empty! */
+int exprParsePatterns(expr **ppExpr, bool *pAll, trilite_vtab *pTrgVtab, int argc, sqlite3_value **argv){
   int rc = SQLITE_OK;
   *ppExpr = NULL;
   // For each pattern add it to the others with a AND
@@ -56,11 +56,13 @@ int exprParsePatterns(expr **ppExpr, trilite_vtab *pTrgVtab, int argc, sqlite3_v
     const unsigned char* pattern  = sqlite3_value_text(argv[i]);
     int                  nPattern = sqlite3_value_bytes(argv[i]);
     expr *pExpr;
-    rc = exprParse(&pExpr, pTrgVtab, pattern, nPattern);
+    rc = exprParse(&pExpr, pAll, pTrgVtab, pattern, nPattern);
     // Release and return on error, error message is already set
     if(rc != SQLITE_OK) goto abort;
     // If one of the and conditions fails, we're done
-    if(!pExpr) goto abort;
+    if(!pExpr && !pAll) goto abort;
+    // If matches all continue
+    if(!pExpr && pAll) continue;
     // Combine with an AND
     if(*ppExpr)
       rc = exprOperator(ppExpr, *ppExpr, pExpr, EXPR_AND);
@@ -68,21 +70,29 @@ int exprParsePatterns(expr **ppExpr, trilite_vtab *pTrgVtab, int argc, sqlite3_v
       *ppExpr = pExpr;
     if(rc != SQLITE_OK) goto abort;
   }
+  // We didn't get anything, we would have aborted before this
+  // unless, everything is accepted!
+  if(!*ppExpr) *pAll = true;
   return rc;
 abort:
+  *pAll = false;
   exprRelease(*ppExpr);
   *ppExpr = NULL;
   return rc;
 }
 
 /** Parse expression, load doclists and output it to ppExpr */
-int exprParse(expr **ppExpr, trilite_vtab *pTrgVtab, const unsigned char *pattern, int nPattern){
-  if(pattern[0] == '%' && pattern[nPattern - 1] == '%' && nPattern >= 5){
-    return exprSubstring(ppExpr, pTrgVtab, pattern + 1, nPattern - 2);
-  }else if(pattern[0] == '/' && pattern[nPattern - 1] == '/'){
-    return regexpPreFilter(ppExpr, pTrgVtab, pattern + 1, nPattern - 2);
+int exprParse(expr **ppExpr, bool *pAll, trilite_vtab *pTrgVtab, const unsigned char *pattern, int nPattern){
+  if(strncmp((const char*)pattern, "substr:", 7) == 0){
+    return exprSubstring(ppExpr, pAll, pTrgVtab, pattern + 7, nPattern - 7);
+  }else if(strncmp((const char*)pattern, "substr-extents:", 15) == 0){
+    return exprSubstring(ppExpr, pAll, pTrgVtab, pattern + 15, nPattern - 15);
+  }else if(strncmp((const char*)pattern, "regexp:", 7) == 0){
+    return regexpPreFilter(ppExpr, pAll, pTrgVtab, pattern + 7, nPattern - 7);
+  }else if(strncmp((const char*)pattern, "regexp-extents:", 15) == 0){
+    return regexpPreFilter(ppExpr, pAll, pTrgVtab, pattern + 15, nPattern - 15);
   }else{
-    triliteError(pTrgVtab, "MATCH pattern must be a regular expression or a substring pattern of at least 3!");
+    triliteError(pTrgVtab, "MATCH pattern must be a regular expression or a substring pattern!");
     return SQLITE_ERROR;
   }
 }
@@ -189,13 +199,15 @@ bool exprNextResult(expr **ppExpr, sqlite3_int64 *pId){
 
 
 /** Create an expression for matching substrings */
-int exprSubstring(expr **ppExpr, trilite_vtab *pTrgVtab, const unsigned char *string, int nString){
+int exprSubstring(expr **ppExpr, bool *pAll, trilite_vtab *pTrgVtab, const unsigned char *string, int nString){
   int rc = SQLITE_OK;
+  *ppExpr = NULL;
 
   // There should be trigrams here, these special cases should be handled elsewhere
-  assert(nString >= 3);
-
-  *ppExpr = NULL;
+  if(nString < 3){
+    *pAll = true;
+    return SQLITE_OK;
+  }
 
   int i;
   for(i = 0; i < nString - 2; i++){
@@ -207,6 +219,7 @@ int exprSubstring(expr **ppExpr, trilite_vtab *pTrgVtab, const unsigned char *st
     // we're done here as the substring can't be matched!
     if(!pTrgExpr){
       exprRelease(*ppExpr);
+      *pAll = false;
       *ppExpr = NULL; // Can't satisfy this tree
       return rc;
     }
@@ -274,88 +287,4 @@ int exprOperator(expr** ppExpr, expr* pExpr1, expr* pExpr2, expr_type eType){
   (*ppExpr)->expr.op.expr2 = pExpr2;
   return SQLITE_OK;
 }
-
-
-
-
-/** Custom match function that filters to exact matches
- * 
- * Arguments to the MATCH operator is available when filtering the results,
- * we could easily do exact matching in the triliteNext function for the cursor
- * however, we wish to postpone this operation to the last possible moment,
- * hoping that sqlite might skip some of the results as it joins tables.
- * Inorder to ensure that other operators are applied before the MATCH operator
- * place the MATCH operator as the right-most term in your WHERE clause.
- * 
- * At the moment sqlite does not feature any strategies for communicating the
- * cost of respective scalar functions, so it's the responsibility of the
- * developer to order the scalar functions in order from cheap to expensive.
- * (Note, that selectivity might also be relevant in such considerations).
- */
-void exprMatchFunction(sqlite3_context* pCon, int argc, sqlite3_value** argv){
-  // Validate the input
-  if(argc != 2){
-    sqlite3_result_error(pCon, "The MATCH operator on a trigram index takes 2 arguments!", -1);
-    return;
-  }
-  if(sqlite3_value_type(argv[0]) != SQLITE_TEXT){
-    sqlite3_result_error(pCon, "The pattern for the MATCH operator on a trigram index must be a string", -1);
-    return;
-  }
-  if(sqlite3_value_type(argv[1]) != SQLITE_TEXT){
-    sqlite3_result_error(pCon, "The MATCH operator on a trigram index can only operate on text", -1);
-    return;
-  }
-  // Now, get the input
-  const unsigned char *pattern = sqlite3_value_text(argv[0]);
-  int nPattern                 = sqlite3_value_bytes(argv[0]);
-  const unsigned char *text    = sqlite3_value_text(argv[1]);
-  int nText                    = sqlite3_value_bytes(argv[1]);
-
-  bool retval = false;
-  if(pattern[0] == '%' && pattern[nPattern - 1] == '%'){
-#if ENABLE_SCANSTR
-    retval = scanstr(text, nText, pattern + 1, nPattern - 2) != NULL;
-#else
-    kmp_context *pKMP = (kmp_context*)sqlite3_get_auxdata(pCon, 0);
-    // Build the KMP context if not already done 
-    if(!pKMP){
-      kmpCreate(&pKMP, pattern + 1, nPattern - 2);
-      sqlite3_set_auxdata(pCon, 0, pKMP, (void(*)(void*))kmpRelease);
-    }
-    assert(pKMP);
-    // Do substring testing
-    retval = kmpTest(pKMP, text, nText, pattern + 1, nPattern - 2);
-#endif /* ENABLE_SCANSTR */
-  } else if(pattern[0] == '/' && pattern[nPattern - 1] == '/'){
-    // Get the compiled regular expression
-    regexp *pRegExp = sqlite3_get_auxdata(pCon, 0);
-    // If it isn't there compile and add it
-    if(!pRegExp){
-      int rc = regexpCompile(&pRegExp, pattern + 1, nPattern - 2);
-      assert(rc == SQLITE_OK);
-      if(rc != SQLITE_OK){
-        // This should have been discovered ealier in the filter step, so no
-        // need to add complicated error messages here.
-        sqlite3_result_error(pCon, "Regular doesn't compile!", -1);
-        return;
-      }
-      // Add the newly compiled regular expression
-      sqlite3_set_auxdata(pCon, 0, pRegExp, (void(*)(void*))regexpRelease);
-    }
-    // Test with the regular expression
-    assert(pRegExp);
-    retval = regexpMatch(pRegExp, text, nText);
-  } else {
-    sqlite3_result_error(pCon, "The pattern must be either a regular expression or substring pattern", -1);
-    return;
-  }
-  // Return true (1) if pattern in a substring of text
-  if(retval){
-    sqlite3_result_int(pCon, 1);
-  }else{
-    sqlite3_result_int(pCon, 0);
-  }
-}
-
 

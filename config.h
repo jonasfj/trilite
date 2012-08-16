@@ -46,6 +46,13 @@ typedef uint32_t trilite_trigram;
  * embedded system with non-pipelined CPUs. */
 #define ENABLE_SCANSTR                      1
 
+/** Minimum allocation for offsets buffer on trilite_cursor */
+#define MIN_OFFSETS_ALLOCATION              (2 * 4 * 1024)
+
+/** Reallocation factor for offsets buffer on trilite_cursor
+ * Must be at least 1.0f */
+#define OFFSETS_REALLOC_FACTOR              1.5f
+
 /** Index strateties
  * Please note that 0, is an invalid index strategy, this invariant is assumed in
  * the cursor implementation. Also note that IDX flag are exclusive!

@@ -44,6 +44,9 @@ int sqlite3_extension_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routi
   // Initialize the extension API
   SQLITE_EXTENSION_INIT2(pApi);
 
+  // Register place holder for the extents function
+  sqlite3_overload_function(db, "extents", 1);
+
   // Create module
   rc = sqlite3_create_module(db, "trilite", &triliteModule, 0);
 

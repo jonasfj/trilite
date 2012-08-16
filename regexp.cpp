@@ -28,11 +28,28 @@ extern "C" {
 #include <re2/re2.h>
 #include <re2/prefilter.h>
 
-static int exprFromPreFilter(expr**, trilite_vtab*, re2::Prefilter*, bool*);
+static int exprFromPreFilter(expr**, bool*, trilite_vtab*, re2::Prefilter*);
+
+/* Handling the special case when an expr accepts everything
+ * In trilite expr cannot match everything, this because the case where we have
+ * all rows, is a FULL_TABLE_SCAN, for efficiency this should be done
+ * separately.
+ * In particular an expr in expr.c is expected to always contains one more
+ * candidate row, if not it should delete itself and report that to it's owner.
+ * This way, pExpr becomes NULL when no more candidate rows are available.
+ * In re2, there's a special re2::Prefilter::ALL expression type which matches
+ * all documents. We indicate this by setting *pAll = true and *ppExpr = NULL.
+ *
+ * This way we can consume the ALL expression at the next AND or OR expr, or
+ * we can propergate it to the filter function on cursor and change behaviour to
+ * a full table scan, if that's desired.
+ */
+
+
 
 /** Construct a filter expression from a regular expression
  * Returns SQLITE_ERROR and sets user relevant error message on error */
-int regexpPreFilter(expr **ppExpr, trilite_vtab *pTrgVtab, const unsigned char *expr, int nExpr){
+int regexpPreFilter(expr **ppExpr, bool *pAll, trilite_vtab *pTrgVtab, const unsigned char *expr, int nExpr){
   int rc = SQLITE_OK;
 
   *ppExpr = NULL;
@@ -109,17 +126,8 @@ int regexpPreFilter(expr **ppExpr, trilite_vtab *pTrgVtab, const unsigned char *
     return SQLITE_ERROR;
   }
 
-  bool all;
-  rc = exprFromPreFilter(ppExpr, pTrgVtab, pf, &all);
+  rc = exprFromPreFilter(ppExpr, pAll, pTrgVtab, pf);
   assert(rc == SQLITE_OK);
-
-  // if no expr and all, it matches everything and we raise an error
-  // Notice if all is false, we have that nothing matches and we just leave
-  // ppExpr NULL, and everything is fine...
-  if(!*ppExpr && all){
-    triliteError(pTrgVtab, "REGEXP: Failed to build a filter for the regular expression");
-    return SQLITE_ERROR;
-  }
 
   // Release the prefilter
   delete pf;
@@ -131,7 +139,7 @@ int regexpPreFilter(expr **ppExpr, trilite_vtab *pTrgVtab, const unsigned char *
  * Returns SQLITE_OK on success, outputs expression as *ppExpr, if NULL, *all
  * determines if it's because everything matches the expr or nothing matches the
  * expression, ie. *all == true, implies everything matches the expression */
-static int exprFromPreFilter(expr **ppExpr, trilite_vtab *pTrgVtab, re2::Prefilter* pf, bool *pAll){
+static int exprFromPreFilter(expr **ppExpr, bool *pAll, trilite_vtab *pTrgVtab, re2::Prefilter* pf){
   int rc = SQLITE_OK;
   assert(pf && pAll);
   *ppExpr = NULL;
@@ -146,21 +154,16 @@ static int exprFromPreFilter(expr **ppExpr, trilite_vtab *pTrgVtab, re2::Prefilt
 
   // If we have an atom it's a substring
   if(pf->op() == re2::Prefilter::ATOM){
-    // If there's no trigrams in the atom, it matches everything
-    if(pf->atom().size() < 3){
-      *pAll = true;
-      return SQLITE_OK;
-    }
     // Construct expr from substring
-    rc = exprSubstring(ppExpr, pTrgVtab, (const unsigned char*)pf->atom().c_str(), pf->atom().size());
-    return rc;
+    return exprSubstring(ppExpr, pAll, pTrgVtab, (const unsigned char*)pf->atom().c_str(), pf->atom().size());
   }
 
   // Get the operator type
   expr_type eType = EXPR_OR;
   if(pf->op() == re2::Prefilter::AND)
     eType = EXPR_AND;
-  assert(pf->op() == re2::Prefilter::OR);
+  else
+    assert(pf->op() == re2::Prefilter::OR);
 
   // Get sub expressions
   std::vector<re2::Prefilter*>* subs = pf->subs();
@@ -169,7 +172,7 @@ static int exprFromPreFilter(expr **ppExpr, trilite_vtab *pTrgVtab, re2::Prefilt
   for(i = 0; i < subs->size(); i++){
     bool all;
     expr *pExpr = NULL;
-    rc = exprFromPreFilter(&pExpr, pTrgVtab, (*subs)[i], &all);
+    rc = exprFromPreFilter(&pExpr, &all, pTrgVtab, (*subs)[i]);
     assert(rc == SQLITE_OK);
     // Abort if we get an error
     if(rc != SQLITE_OK){
@@ -205,6 +208,16 @@ static int exprFromPreFilter(expr **ppExpr, trilite_vtab *pTrgVtab, re2::Prefilt
       *ppExpr = pExpr;
   }
 
+  // If we didn't get any terms
+  if(!*ppExpr){
+    // If we had all and AND, then we accept all
+    if(eType == EXPR_AND)
+      *pAll = true;
+    // If we had !all and OR, we accept nothing!
+    if(eType == EXPR_OR)
+      *pAll = false;
+  }
+
   return SQLITE_OK;
 }
 
@@ -237,7 +250,21 @@ int regexpCompile(regexp **ppRegExp, const unsigned char *pattern, int nPattern)
 
 /** Match with a regular expression */
 bool regexpMatch(regexp *pRegExp, const unsigned char *text, int nText){
-  return re2::RE2::PartialMatch(re2::StringPiece((const char*)text, nText), pRegExp->re);
+  re2::StringPiece input((const char*)text, nText);
+  return re2::RE2::PartialMatch(input, pRegExp->re);
+}
+
+/** Match with a regular expression and return the extents as *start and *end */
+bool regexpMatchExtents(regexp *pRegExp, const unsigned char **pStart, const unsigned char **pEnd, const unsigned char *text, int nText){
+  bool retval = false;
+  re2::StringPiece input((const char*)text, nText);
+  re2::StringPiece match;
+  retval = pRegExp->re.Match(input, 0, nText, re2::RE2::UNANCHORED, &match, 1);
+  if(retval){
+    *pStart = (const unsigned char*)match.data();
+    *pEnd   = (const unsigned char*)match.data() + match.size();
+  }
+  return retval;
 }
 
 /** Release regular expression */
