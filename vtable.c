@@ -283,6 +283,8 @@ int triliteBestIndex(sqlite3_vtab *pVtab, sqlite3_index_info *pInfo){
   pInfo->idxNum         = IDX_FULL_SCAN;
   pInfo->estimatedCost  = COST_FULL_SCAN;
 
+  log("Computing best index:");
+
   int i;
   for(i = 0; i < pInfo->nConstraint; i++){
     // Log the constraint for debugging
@@ -340,6 +342,9 @@ int triliteBestIndex(sqlite3_vtab *pVtab, sqlite3_index_info *pInfo){
   // in case some idiot thinks it makes sense to order by both
   // id and rowid, although they are the same
   for(i = pInfo->nOrderBy - 1; i >= 0; i--){
+    log("------- Order By:");
+    log("Column: %i", pInfo->aOrderBy[i].iColumn);
+    log("DESC:   %i", pInfo->aOrderBy[i].desc);
     // Anything on id we can consume
     if(pInfo->aOrderBy[i].iColumn < 1){
       pInfo->orderByConsumed = 1;

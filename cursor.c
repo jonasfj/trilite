@@ -113,6 +113,7 @@ int triliteFilter(sqlite3_vtab_cursor *pCur, int idxNum, const char* zIdx, int a
   char *zSql;
   // Some sort of intelligent trigram matching
   if(idxNum & IDX_MATCH_SCAN){
+    log("Starting a match index scan");
     assert(argc > 0);
     // Get the pattern
     //TODO What happens if this is not a text value?
@@ -127,9 +128,9 @@ int triliteFilter(sqlite3_vtab_cursor *pCur, int idxNum, const char* zIdx, int a
     if(!pTrgCur->pExpr && all){
       // TODO Have a table setting as to raise error instead!!!
       // TODO When doing this added setting for regexp size and runtime memory
+      log("Switching to full table scan");
       // Change to a full table scan
-      pTrgCur->idxNum |=  IDX_FULL_SCAN;
-      pTrgCur->idxNum &= ~IDX_MATCH_SCAN;
+      pTrgCur->idxNum = (idxNum & ~IDX_MATCH_SCAN) | IDX_FULL_SCAN;
       idxNum = pTrgCur->idxNum;
     }else{
       // Prepare statement for triliteNext
@@ -139,10 +140,12 @@ int triliteFilter(sqlite3_vtab_cursor *pCur, int idxNum, const char* zIdx, int a
       sqlite3_free(zSql);
       assert(rc == SQLITE_OK);
     }
+    log("Expr and sql ready!");
   }
   
   // Full table scan
   if(idxNum & IDX_FULL_SCAN){
+    log("Starting a full index scan");
     // Statement for descending ordering
     if(idxNum & ORDER_BY_DESC){
       zSql = "SELECT id, text FROM %Q.'%q_content' order by id DESC";

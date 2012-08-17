@@ -152,7 +152,7 @@ void matchFunction(sqlite3_context* pCtx, int argc, sqlite3_value** argv){
       while(start){
         const unsigned char *end = start + pAuxData->nPattern;
         triliteAddExtents(pTrgCur, start - text, end - text);
-        start = scanstr(end, nText - (end - start), pAuxData->pattern, pAuxData->nPattern);
+        start = scanstr(end, nText - (end - text), pAuxData->pattern, pAuxData->nPattern);
       }
     }
   } else if(pAuxData->eType == PATTERN_REGEXP){
@@ -161,7 +161,7 @@ void matchFunction(sqlite3_context* pCtx, int argc, sqlite3_value** argv){
   } else if(pAuxData->eType == (PATTERN_REGEXP | PATTERN_EXTENTS)){
     const unsigned char *start = text;
     const unsigned char *end   = text;
-    while(regexpMatchExtents(pAuxData->pRegExp, &start, &end, end, nText - (end - start))){
+    while(regexpMatchExtents(pAuxData->pRegExp, &start, &end, end, nText - (end - text))){
       retval = true;
       triliteAddExtents(pTrgCur, start - text, end - text);
     }
