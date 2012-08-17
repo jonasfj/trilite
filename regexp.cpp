@@ -55,7 +55,7 @@ int regexpPreFilter(expr **ppExpr, bool *pAll, trilite_vtab *pTrgVtab, const uns
   *ppExpr = NULL;
   
   // Create regular expression from string
-  re2::RE2 re(re2::StringPiece((const char*)expr, nExpr), re2::RE2::Quiet);
+  re2::RE2 re(re2::StringPiece((const char*)expr, nExpr), re2::RE2::DefaultOptions); //, re2::RE2::Quiet);
 
   // TODO if re.ProgramSize() > SOME_THRESHOLD return and error message 
   // Ideally this threshold should be a runtime setting
@@ -90,7 +90,7 @@ int regexpPreFilter(expr **ppExpr, bool *pAll, trilite_vtab *pTrgVtab, const uns
         msg = "Bad repeat argument at '%s'";
         break;
       case re2::RE2::ErrorRepeatOp:
-        msg = "Bad repear operator at '%s'";
+        msg = "Bad repeatition operator at '%s'";
         break;
       case re2::RE2::ErrorBadPerlOp:
         msg = "Bad perl operator at '%s'";

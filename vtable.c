@@ -484,7 +484,7 @@ void triliteError(trilite_vtab *pTrgVtab, const char *format, ...){
   va_list args;
   va_start(args, format);
   // Pass it to sqlite3_mprintf
-  pTrgVtab->base.zErrMsg = sqlite3_mprintf(format, args);
+  pTrgVtab->base.zErrMsg = sqlite3_vmprintf(format, args);
   // Release it
   va_end(args);
 }
