@@ -2,6 +2,7 @@
 #define TRILITE_VTABLE_H
 
 #include <sqlite3ext.h>
+#include <stdbool.h>
 
 typedef struct hash_table hash_table;
 typedef struct trilite_vtab trilite_vtab;
@@ -37,6 +38,12 @@ struct trilite_vtab {
 
   /** Hash table of new trigrams and their doclists */
   hash_table *pAdded;
+
+  /** Raise error when evaluating a match scan as full table scan */
+  bool forbidFullMatchScan;
+
+  /** Max regexp memory */
+  int maxRegExpMemory;
 };
 
 int triliteCreate(sqlite3*, void*, int, const char *const*, sqlite3_vtab**, char**);

@@ -54,8 +54,13 @@ int regexpPreFilter(expr **ppExpr, bool *pAll, trilite_vtab *pTrgVtab, const uns
 
   *ppExpr = NULL;
   
+  // Options for regular expressions
+  re2::RE2::Options options;
+  options.set_log_errors(false);
+  options.set_max_mem(pTrgVtab->maxRegExpMemory);
+
   // Create regular expression from string
-  re2::RE2 re(re2::StringPiece((const char*)expr, nExpr), re2::RE2::DefaultOptions); //, re2::RE2::Quiet);
+  re2::RE2 re(re2::StringPiece((const char*)expr, nExpr), options);
 
   // TODO if re.ProgramSize() > SOME_THRESHOLD return and error message 
   // Ideally this threshold should be a runtime setting

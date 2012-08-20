@@ -12,7 +12,7 @@ const sqlite3_api_routines *sqlite3_api;
 #include <stdint.h>
 #include <assert.h>
 
-#define MIN(A,B)            ((A) < (B) ? (A) : (B))
+#define MAX(A,B)            ((A) < (B) ? (B) : (A))
 
 typedef struct doclist doclist;
 
@@ -126,8 +126,10 @@ int triliteFilter(sqlite3_vtab_cursor *pCur, int idxNum, const char* zIdx, int a
 
     // We didn't get any expression, because it matches all (ie. no filtering)
     if(!pTrgCur->pExpr && all){
-      // TODO Have a table setting as to raise error instead!!!
-      // TODO When doing this added setting for regexp size and runtime memory
+      if(pTrgVtab->forbidFullMatchScan){
+        triliteError(pTrgVtab, "QUERY: Search query cannot be accelerated, include longer required substrings!");
+        return SQLITE_ERROR;
+      }
       log("Switching to full table scan");
       // Change to a full table scan
       pTrgCur->idxNum = (idxNum & ~IDX_MATCH_SCAN) | IDX_FULL_SCAN;
@@ -346,7 +348,7 @@ int triliteText(trilite_cursor *pTrgCur, const unsigned char **pText, int *pnTex
 int triliteAddExtents(trilite_cursor *pTrgCur, uint32_t start, uint32_t end){
   // Reallocate if there's no more memory
   if(pTrgCur->nExtentsAvail == 0){
-    int nSlots = MIN((pTrgCur->nExtents + 1) * OFFSETS_REALLOC_FACTOR, MIN_OFFSETS_ALLOCATION);
+    int nSlots = MAX((pTrgCur->nExtents + 1) * OFFSETS_REALLOC_FACTOR, MIN_OFFSETS_ALLOCATION);
     pTrgCur->extents = (uint32_t*)sqlite3_realloc(pTrgCur->extents, nSlots * sizeof(uint32_t) * 2);
     if(!pTrgCur->extents) return SQLITE_NOMEM;
     pTrgCur->nExtentsAvail = nSlots - pTrgCur->nExtents;
