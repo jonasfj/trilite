@@ -6,8 +6,6 @@
 
 #include "config.h"
 
-typedef struct trilite_cursor trilite_cursor;
-
 int triliteOpen(sqlite3_vtab*, sqlite3_vtab_cursor**);
 int triliteClose(sqlite3_vtab_cursor*);
 int triliteFilter(sqlite3_vtab_cursor*, int, const char*, int, sqlite3_value**);

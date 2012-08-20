@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
-// Simple log macro for easy debuggin
+/* Simple log macro for easy debuggin */
 #ifndef NDEBUG
 #define log(...)   do{                                                        \
                             fprintf(stderr, "%s:%i: ", __FILE__, __LINE__);   \
@@ -22,10 +22,10 @@
 /** Type for usage as trigram type */
 typedef uint32_t trilite_trigram;
 
-// Maximum number of bytes pending before flush hash table to database
+/* Maximum number of bytes pending before flush hash table to database */
 #define  MAX_PENDING_BYTES          (1 * 1024 * 1024)
-// Notes
-// 200MiB         6 mins
+/* Notes */
+/* 200MiB         6 mins */
 
 /** Compute a unique 32 bit hash of a trigram
  * We use this hash as rowid for the document lists.
@@ -72,5 +72,17 @@ typedef uint32_t trilite_trigram;
 
 /** Sweet macro for logical implication */
 #define IMPLIES(A,B)    (!(A) || ((A) && (B)))
+
+/** All typedefs in once place */
+
+typedef struct trilite_vtab trilite_vtab;
+typedef struct trilite_cursor trilite_cursor;
+
+typedef struct hash_table hash_table;
+typedef struct hash_table_cursor hash_table_cursor;
+
+typedef struct expr expr;
+
+typedef struct regexp regexp;
 
 #endif /* TRILITE_CONFIG_H */

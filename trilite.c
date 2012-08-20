@@ -41,13 +41,13 @@ static const sqlite3_module triliteModule = {
 int sqlite3_extension_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines *pApi){
   int rc = SQLITE_OK;
 
-  // Initialize the extension API
+  /* Initialize the extension API */
   SQLITE_EXTENSION_INIT2(pApi);
 
-  // Register place holder for the extents function
+  /* Register place holder for the extents function */
   sqlite3_overload_function(db, "extents", 1);
 
-  // Create module
+  /* Create module */
   rc = sqlite3_create_module(db, "trilite", &triliteModule, 0);
 
   return rc;

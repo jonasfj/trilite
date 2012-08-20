@@ -49,18 +49,18 @@ void matchAuxDataFree(aux_pattern_data *pAuxData){
   sqlite3_free(pAuxData);
 }
 
-//TODO Implement regexpReportErrors...
+/*TODO Implement regexpReportErrors... */
 
 /** Create auxiliary data for matchFunction, leaves ppAuxData NULL on pattern
  * failure */
 void matchCreate(aux_pattern_data **ppAuxData, const unsigned char *pattern, int nPattern){
-  // Allocate a structure
+  /* Allocate a structure */
   *ppAuxData = (aux_pattern_data*)sqlite3_malloc(sizeof(aux_pattern_data) + nPattern + 1);
 
-  // Copy the pattern, including the null char
+  /* Copy the pattern, including the null char */
   (*ppAuxData)->pattern = (unsigned char*)(*ppAuxData + 1);
 
-  // Let's figure out what kind of pattern we have
+  /* Let's figure out what kind of pattern we have */
   int offset = 0;
   if(strncmp((const char*)pattern, "substr:", 7) == 0){
     (*ppAuxData)->eType     = PATTERN_SUBSTR;
@@ -74,15 +74,15 @@ void matchCreate(aux_pattern_data **ppAuxData, const unsigned char *pattern, int
     (*ppAuxData)->eType = PATTERN_REGEXP;
     int rc              = regexpCompile(&(*ppAuxData)->pRegExp, pattern + 7, nPattern - 7);
     offset              = 7;
-    assert(rc == SQLITE_OK);  //Errors should be handled else where
+    assert(rc == SQLITE_OK);  /*Errors should be handled else where */
   }else if(strncmp((const char*)pattern, "regexp-extents:", 15) == 0){
     (*ppAuxData)->eType = PATTERN_REGEXP | PATTERN_EXTENTS;
     int rc              = regexpCompile(&(*ppAuxData)->pRegExp, pattern + 15, nPattern - 15);
     offset              = 15;
-    assert(rc == SQLITE_OK);  //Errors should be handled else where
-  //}else if(strncmp(pattern, "egrep:", 6) == 0){
-  //  pAuxData->eType = PATTERN_REGEXP;
-  //  pfxLen = 6;
+    assert(rc == SQLITE_OK);  /*Errors should be handled else where */
+  /*}else if(strncmp(pattern, "egrep:", 6) == 0){ */
+  /*  pAuxData->eType = PATTERN_REGEXP; */
+  /*  pfxLen = 6; */
   }else{
     sqlite3_free(*ppAuxData);
     *ppAuxData = NULL;
@@ -101,7 +101,7 @@ void matchCreate(aux_pattern_data **ppAuxData, const unsigned char *pattern, int
  * pattern.
  */
 void matchFunction(sqlite3_context* pCtx, int argc, sqlite3_value** argv){
-  // Validate the input
+  /* Validate the input */
   if(argc != 2){
     sqlite3_result_error(pCtx, "The MATCH operator on a trigram index takes 2 arguments!", -1);
     return;
@@ -112,33 +112,33 @@ void matchFunction(sqlite3_context* pCtx, int argc, sqlite3_value** argv){
     return;
   }
 
-  // Get prepared auxiliary data, if any
+  /* Get prepared auxiliary data, if any */
   aux_pattern_data *pAuxData = (aux_pattern_data*)sqlite3_get_auxdata(pCtx, 0);
-  // If we didn't get any auxiliary data, create it and store it!
+  /* If we didn't get any auxiliary data, create it and store it! */
   if(!pAuxData){
-    // Check that we have correct datatype for the pattern
+    /* Check that we have correct datatype for the pattern */
     if(sqlite3_value_type(argv[0]) != SQLITE_TEXT){
       sqlite3_result_error(pCtx, "The pattern for the MATCH operator on a trigram index must be a string", -1);
       return;
     }
-    // Get the pattern
+    /* Get the pattern */
     const unsigned char *pattern = sqlite3_value_text(argv[0]);
     int nPattern                 = sqlite3_value_bytes(argv[0]);
 
-    // Create some auxiliary data :)
+    /* Create some auxiliary data :) */
     matchCreate(&pAuxData, pattern, nPattern);
     if(!pAuxData){
-      // Die on errors, there shouldn't be any here if match is called correctly
+      /* Die on errors, there shouldn't be any here if match is called correctly */
       sqlite3_result_error(pCtx, "The match operator needs a valid pattern", -1);
       return;
     }
 
-    // Save the auxiliary data for next time
+    /* Save the auxiliary data for next time */
     sqlite3_set_auxdata(pCtx, 0, pAuxData, (void(*)(void*))matchAuxDataFree);
   }
   
 
-  // Get the text from the cursor
+  /* Get the text from the cursor */
   const unsigned char *text;
   int nText;
   triliteText(pTrgCur, &text, &nText);
@@ -147,7 +147,7 @@ void matchFunction(sqlite3_context* pCtx, int argc, sqlite3_value** argv){
   if(pAuxData->eType & PATTERN_SUBSTR){
     const unsigned char *start = scanstr(text, nText, pAuxData->pattern, pAuxData->nPattern);
     retval = start != NULL;
-    // If output extents is requested
+    /* If output extents is requested */
     if(pAuxData->eType & PATTERN_EXTENTS){
       while(start){
         const unsigned char *end = start + pAuxData->nPattern;
@@ -171,7 +171,7 @@ void matchFunction(sqlite3_context* pCtx, int argc, sqlite3_value** argv){
     return;
   }
 
-  // Return true (1) if pattern in a substring of text
+  /* Return true (1) if pattern in a substring of text */
   if(retval){
     sqlite3_result_int(pCtx, 1);
   }else{

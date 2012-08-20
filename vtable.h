@@ -4,8 +4,7 @@
 #include <sqlite3ext.h>
 #include <stdbool.h>
 
-typedef struct hash_table hash_table;
-typedef struct trilite_vtab trilite_vtab;
+#include "config.h"
 
 /** Trilite virtual table */
 struct trilite_vtab {

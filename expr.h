@@ -16,8 +16,6 @@ enum expr_type{
 };
 
 typedef enum expr_type expr_type;
-typedef struct expr expr;
-typedef struct trilite_vtab trilite_vtab;
 
 int exprParsePatterns(expr**, bool*, trilite_vtab*, int, sqlite3_value**);
 int  exprParse(expr**, bool*, trilite_vtab*, const unsigned char*, int);

@@ -105,7 +105,7 @@ bool hashInsert(hash_table *pTable, trilite_trigram trigram, sqlite3_int64 id){
   hash_entry *pEntry;
   hash_entry *pPrevEntry;
   if(findEntry(pTable, trigram, &pEntry, &pPrevEntry)){
-    // If there's no slots available, we have to reallocate and update next pointer on pPrevEntry
+    /* If there's no slots available, we have to reallocate and update next pointer on pPrevEntry */
     if(!pEntry->nSizeAvail){
       assert(ALLOCATION_FACTOR >= 1);
       int slots = pEntry->nDocList * ALLOCATION_FACTOR + 1;
@@ -114,7 +114,7 @@ bool hashInsert(hash_table *pTable, trilite_trigram trigram, sqlite3_int64 id){
       pTable->memory += pEntry->nSizeAvail * sizeof(sqlite3_int64);
     }
   }else{
-    // If there was not entry for this trigram let's allocate one
+    /* If there was not entry for this trigram let's allocate one */
     pEntry = (hash_entry*)sqlite3_malloc(sizeof(hash_entry) + sizeof(sqlite_int64) * MIN_ALLOCATION);
     pEntry->nDocList    = 0;
     pEntry->nSizeAvail  = MIN_ALLOCATION;
@@ -122,26 +122,26 @@ bool hashInsert(hash_table *pTable, trilite_trigram trigram, sqlite3_int64 id){
     pEntry->trigram     = trigram;
     pTable->memory += sizeof(hash_entry) + sizeof(sqlite_int64) * MIN_ALLOCATION;
   }
-  // Create/Update references
+  /* Create/Update references */
   if(pPrevEntry)
     pPrevEntry->next = pEntry;
   else
     pTable->keys[COMPUTE_HASH(trigram)] = pEntry;
   
-  // Insert id into docList, move ids as necessary
+  /* Insert id into docList, move ids as necessary */
   int i;
-  // TODO A cute little binary search might be nice
+  /* TODO A cute little binary search might be nice */
   sqlite3_int64 *docList = DOCLIST(pEntry);
   for(i = 0; i < pEntry->nDocList; i++)
     if(docList[i] >= id) break;
-  // Return false, if id was already here
+  /* Return false, if id was already here */
   if(i < pEntry->nDocList && docList[i] == id) return false;
-  // Move all ids > id
+  /* Move all ids > id */
   memmove(docList + i + 1, docList + i, (pEntry->nDocList - i) * sizeof(sqlite3_int64));
-  // Insert id
+  /* Insert id */
   docList[i] = id;
 
-  // Update available size
+  /* Update available size */
   pEntry->nDocList += 1;
   pEntry->nSizeAvail -= 1;
   
@@ -201,29 +201,29 @@ int hashOpen(hash_table *pTable, hash_table_cursor **ppCur){
  */
 bool hashPop(hash_table_cursor *pCur,
              trilite_trigram *pTrigram, sqlite3_int64 **pIds, int *nIds){
-  // Release anything waiting for release
+  /* Release anything waiting for release */
   if(pCur->pDelete){
     sqlite3_free(pCur->pDelete);
     pCur->pDelete = NULL;
   }
 
-  // Find next offset where there is something
+  /* Find next offset where there is something */
   while(pCur->iOffset < HASH_TABLE_ENTRIES && !pCur->pTable->keys[pCur->iOffset])
     pCur->iOffset++;
 
-  // If there was nothing return false
+  /* If there was nothing return false */
   if(pCur->iOffset >= HASH_TABLE_ENTRIES)
     return false;
 
-  // Set the entry we wish to delete
+  /* Set the entry we wish to delete */
   pCur->pDelete = pCur->pTable->keys[pCur->iOffset];
-  // Remove it from the hash table
+  /* Remove it from the hash table */
   pCur->pTable->keys[pCur->iOffset] = pCur->pDelete->next;
 
-  // Update memory usage
+  /* Update memory usage */
   pCur->pTable->memory -= sizeof(hash_entry) + (pCur->pDelete->nDocList + pCur->pDelete->nSizeAvail) * sizeof(sqlite3_int64);
 
-  // Set return values
+  /* Set return values */
   *pTrigram = pCur->pDelete->trigram;
   *pIds     = DOCLIST(pCur->pDelete);
   *nIds     = pCur->pDelete->nDocList;
@@ -232,12 +232,12 @@ bool hashPop(hash_table_cursor *pCur,
 
 /** Release hash table cursor */
 void hashClose(hash_table_cursor *pCur){
-  // Release anything waiting for release
+  /* Release anything waiting for release */
   if(pCur->pDelete){
     sqlite3_free(pCur->pDelete);
     pCur->pDelete = NULL;
   }
-  // Release the cursor
+  /* Release the cursor */
   sqlite3_free(pCur);
   pCur = NULL;
 }

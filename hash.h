@@ -7,9 +7,6 @@
 
 #include <stdbool.h>
 
-typedef struct hash_table hash_table;
-typedef struct hash_table_cursor hash_table_cursor;
-
 int hashCreate(hash_table**);
 void hashRelease(hash_table*);
 int hashMemoryUsage(hash_table*);

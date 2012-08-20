@@ -3,12 +3,13 @@
 #include <sqlite3ext.h>
 const sqlite3_api_routines *sqlite3_api;
 
-// This is an implementation of the Knuth–Morris–Pratt algorithm for string
-// matching. The implementation with a few fixes is adopted from:
-// http://www-igm.univ-mlv.fr/~lecroq/string/node8.html
-// Who deserves credit for C'ifying this algorithm.
-// Ideally, we should probably have an optimized implementation using SSE
-// instructions or similar, consider looking at memmem from glibc.
+/* This is an implementation of the Knuth–Morris–Pratt algorithm for string
+ * matching. The implementation with a few fixes is adopted from:
+ * http://www-igm.univ-mlv.fr/~lecroq/string/node8.html 
+ * Who deserves credit for C'ifying this algorithm.
+ * Ideally, we should probably have an optimized implementation using SSE
+ * instructions or similar, consider looking at memmem from glibc.
+ */
 
 /** Create a kmp context for matching substring using pattern */
 void kmpCreate(kmp_context **ppContext, const unsigned char *pattern, int nPattern){
@@ -40,11 +41,12 @@ bool kmpTest(kmp_context *pContext, const unsigned char *text, int nText, const 
     i++;
     j++;
     if(i >= nPattern){
-      // Report match j - i as match offset
+      /* Report match j - i as match offset */
       return true;
-      // We can get all matches if we continue here, but for the moment, we just
-      // wan't the boolean answer
-      // i = kmp[i];
+      /* We can get all matches if we continue here, but for the moment, we just
+       * wan't the boolean answer
+       * i = kmp[i]; 
+       */
     }
   }
   return false;

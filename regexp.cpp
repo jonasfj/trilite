@@ -1,6 +1,6 @@
-// All of our headers should be declared external C in C++
-// Since this is the ONLY C++ file we'll needs, let's only
-// do that here.
+/* All of our headers should be declared external C in C++ */
+/* Since this is the ONLY C++ file we'll needs, let's only */
+/* do that here. */
 extern "C" {
 
 #include "regexp.h"
@@ -9,15 +9,15 @@ extern "C" {
 
 }
 
-// DON'T USE SQLITE API FROM THIS FILE!
-// Notice that it is *not* possible to forward declare global variables in C++
-// and as sqlite3 extension API relies on sqlite3_api* being forward declared in
-// every file (and defined in trilite.c) we can't access this variable from C++
-// Fortunately we're mainly interested in generating error codes here, as all
-// other logic should be handled elsewhere, and luckily it makes a lot of sense
-// to make a simple wrapper function for outputting error messages, so this is
-// not an issue.
-// But for future reference don't use the sqlite3 API from this function!
+/* DON'T USE SQLITE API FROM THIS FILE! */
+/* Notice that it is *not* possible to forward declare global variables in C++ */
+/* and as sqlite3 extension API relies on sqlite3_api* being forward declared in */
+/* every file (and defined in trilite.c) we can't access this variable from C++ */
+/* Fortunately we're mainly interested in generating error codes here, as all */
+/* other logic should be handled elsewhere, and luckily it makes a lot of sense */
+/* to make a simple wrapper function for outputting error messages, so this is */
+/* not an issue. */
+/* But for future reference don't use the sqlite3 API from this function! */
 
 #include <assert.h>
 #include <stdbool.h>
@@ -54,20 +54,20 @@ int regexpPreFilter(expr **ppExpr, bool *pAll, trilite_vtab *pTrgVtab, const uns
 
   *ppExpr = NULL;
   
-  // Options for regular expressions
+  /* Options for regular expressions */
   re2::RE2::Options options;
   options.set_log_errors(false);
   options.set_max_mem(pTrgVtab->maxRegExpMemory);
 
-  // Create regular expression from string
+  /* Create regular expression from string */
   re2::RE2 re(re2::StringPiece((const char*)expr, nExpr), options);
 
-  // TODO if re.ProgramSize() > SOME_THRESHOLD return and error message 
-  // Ideally this threshold should be a runtime setting
+  /* TODO if re.ProgramSize() > SOME_THRESHOLD return and error message  */
+  /* Ideally this threshold should be a runtime setting */
 
-  // Provide error message if regular expression compilation failed
+  /* Provide error message if regular expression compilation failed */
   if(!re.ok()){
-    // Error codes from re2
+    /* Error codes from re2 */
     std::string msg;
     switch(re.error_code()){
       case re2::RE2::ErrorBadEscape:
@@ -114,18 +114,18 @@ int regexpPreFilter(expr **ppExpr, bool *pAll, trilite_vtab *pTrgVtab, const uns
         msg = "Unknown internal error at '%s'";
         break;
     }
-    // Now set the error message
+    /* Now set the error message */
     triliteError(pTrgVtab, ("REGEXP: " + msg).c_str(), re.error_arg().c_str());
 
-    // Return error
+    /* Return error */
     return SQLITE_ERROR;
   }
 
-  // Compute a prefilter
+  /* Compute a prefilter */
   re2::Prefilter* pf = re2::Prefilter::FromRE2(&re);
 
-  // Provide error message if a filter couldn't be devised, as we shall not
-  // permit full table scans.
+  /* Provide error message if a filter couldn't be devised, as we shall not */
+  /* permit full table scans. */
   if(!pf){
     triliteError(pTrgVtab, "REGEXP: Failed to build a filter for the regular expression");
     return SQLITE_ERROR;
@@ -134,7 +134,7 @@ int regexpPreFilter(expr **ppExpr, bool *pAll, trilite_vtab *pTrgVtab, const uns
   rc = exprFromPreFilter(ppExpr, pAll, pTrgVtab, pf);
   assert(rc == SQLITE_OK);
 
-  // Release the prefilter
+  /* Release the prefilter */
   delete pf;
 
   return rc;
@@ -157,20 +157,20 @@ static int exprFromPreFilter(expr **ppExpr, bool *pAll, trilite_vtab *pTrgVtab, 
     return SQLITE_OK;
   }
 
-  // If we have an atom it's a substring
+  /* If we have an atom it's a substring */
   if(pf->op() == re2::Prefilter::ATOM){
-    // Construct expr from substring
+    /* Construct expr from substring */
     return exprSubstring(ppExpr, pAll, pTrgVtab, (const unsigned char*)pf->atom().c_str(), pf->atom().size());
   }
 
-  // Get the operator type
+  /* Get the operator type */
   expr_type eType = EXPR_OR;
   if(pf->op() == re2::Prefilter::AND)
     eType = EXPR_AND;
   else
     assert(pf->op() == re2::Prefilter::OR);
 
-  // Get sub expressions
+  /* Get sub expressions */
   std::vector<re2::Prefilter*>* subs = pf->subs();
 
   size_t i;
@@ -179,46 +179,46 @@ static int exprFromPreFilter(expr **ppExpr, bool *pAll, trilite_vtab *pTrgVtab, 
     expr *pExpr = NULL;
     rc = exprFromPreFilter(&pExpr, &all, pTrgVtab, (*subs)[i]);
     assert(rc == SQLITE_OK);
-    // Abort if we get an error
+    /* Abort if we get an error */
     if(rc != SQLITE_OK){
       exprRelease(pExpr);
       exprRelease(*ppExpr);
       *ppExpr = NULL;
       return SQLITE_ERROR;
     }
-    // if we didn't get an expr
+    /* if we didn't get an expr */
     if(!pExpr){
-      // if all and operator is OR, we're done
+      /* if all and operator is OR, we're done */
       if(all && eType == EXPR_OR){
         *pAll = true;
         exprRelease(*ppExpr);
         *ppExpr = NULL;
         return SQLITE_OK;
       }
-      // if !all and operator is AND, we're done
+      /* if !all and operator is AND, we're done */
       if(!all && eType == EXPR_AND){
         *pAll = false;
         exprRelease(*ppExpr);
         *ppExpr = NULL;
         return SQLITE_OK;
       }
-      // If !all and OR, or all and AND, we simply ignore this term
+      /* If !all and OR, or all and AND, we simply ignore this term */
       continue;
     }
 
-    // Add pExpr to ppExpr
+    /* Add pExpr to ppExpr */
     if(*ppExpr){
       exprOperator(ppExpr, *ppExpr, pExpr, eType);
     }else
       *ppExpr = pExpr;
   }
 
-  // If we didn't get any terms
+  /* If we didn't get any terms */
   if(!*ppExpr){
-    // If we had all and AND, then we accept all
+    /* If we had all and AND, then we accept all */
     if(eType == EXPR_AND)
       *pAll = true;
-    // If we had !all and OR, we accept nothing!
+    /* If we had !all and OR, we accept nothing! */
     if(eType == EXPR_OR)
       *pAll = false;
   }

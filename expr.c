@@ -50,28 +50,28 @@ struct expr{
 int exprParsePatterns(expr **ppExpr, bool *pAll, trilite_vtab *pTrgVtab, int argc, sqlite3_value **argv){
   int rc = SQLITE_OK;
   *ppExpr = NULL;
-  // For each pattern add it to the others with a AND
+  /* For each pattern add it to the others with a AND */
   int i;
   for(i = 0; i < argc; i++){
     const unsigned char* pattern  = sqlite3_value_text(argv[i]);
     int                  nPattern = sqlite3_value_bytes(argv[i]);
     expr *pExpr;
     rc = exprParse(&pExpr, pAll, pTrgVtab, pattern, nPattern);
-    // Release and return on error, error message is already set
+    /* Release and return on error, error message is already set */
     if(rc != SQLITE_OK) goto abort;
-    // If one of the and conditions fails, we're done
+    /* If one of the and conditions fails, we're done */
     if(!pExpr && !pAll) goto abort;
-    // If matches all continue
+    /* If matches all continue */
     if(!pExpr && pAll) continue;
-    // Combine with an AND
+    /* Combine with an AND */
     if(*ppExpr)
       rc = exprOperator(ppExpr, *ppExpr, pExpr, EXPR_AND);
     else
       *ppExpr = pExpr;
     if(rc != SQLITE_OK) goto abort;
   }
-  // We didn't get anything, we would have aborted before this
-  // unless, everything is accepted!
+  /* We didn't get anything, we would have aborted before this */
+  /* unless, everything is accepted! */
   if(!*ppExpr) *pAll = true;
   return rc;
 abort:
@@ -134,7 +134,7 @@ static bool exprCheckAndMove(expr **ppExpr, sqlite3_int64 id){
     bool r1 = exprCheckAndMove(&(*ppExpr)->expr.op.expr1, id);
     bool r2 = exprCheckAndMove(&(*ppExpr)->expr.op.expr2, id);
     if((*ppExpr)->eType == EXPR_AND){
-      // If one of them is at end, we're done
+      /* If one of them is at end, we're done */
       if(!(*ppExpr)->expr.op.expr1 || !(*ppExpr)->expr.op.expr2){
         exprRelease((*ppExpr)->expr.op.expr1);
         exprRelease((*ppExpr)->expr.op.expr2);
@@ -167,9 +167,9 @@ static bool exprCheckAndMove(expr **ppExpr, sqlite3_int64 id){
       (*ppExpr)->expr.trigram.docList += read;
     }
     bool retval = (*ppExpr)->expr.trigram.curId == id;
-    // Check if we have to move forward
+    /* Check if we have to move forward */
     if((*ppExpr)->expr.trigram.curId <= id){
-      // If we can't we're at the end and done
+      /* If we can't we're at the end and done */
       if((*ppExpr)->expr.trigram.nSize == 0){
         sqlite3_free(*ppExpr);
         *ppExpr = NULL;
@@ -203,7 +203,7 @@ int exprSubstring(expr **ppExpr, bool *pAll, trilite_vtab *pTrgVtab, const unsig
   int rc = SQLITE_OK;
   *ppExpr = NULL;
 
-  // There should be trigrams here, these special cases should be handled elsewhere
+  /* There should be trigrams here, these special cases should be handled elsewhere */
   if(nString < 3){
     *pAll = true;
     return SQLITE_OK;
@@ -212,19 +212,19 @@ int exprSubstring(expr **ppExpr, bool *pAll, trilite_vtab *pTrgVtab, const unsig
   int i;
   for(i = 0; i < nString - 2; i++){
     trilite_trigram trigram = HASH_TRIGRAM(string + i);
-    // Get a trigram expression for the trigram
+    /* Get a trigram expression for the trigram */
     expr *pTrgExpr;
     rc = exprTrigram(&pTrgExpr, pTrgVtab, trigram);
-    // If there's no trigramExpr that satisfy our conditions
-    // we're done here as the substring can't be matched!
+    /* If there's no trigramExpr that satisfy our conditions */
+    /* we're done here as the substring can't be matched! */
     if(!pTrgExpr){
       exprRelease(*ppExpr);
       *pAll = false;
-      *ppExpr = NULL; // Can't satisfy this tree
+      *ppExpr = NULL; /* Can't satisfy this tree */
       return rc;
     }
 
-    // Combine with an AND expression
+    /* Combine with an AND expression */
     if(*ppExpr){
       rc = exprOperator(ppExpr, *ppExpr, pTrgExpr, EXPR_AND);
       assert(rc == SQLITE_OK);
@@ -242,33 +242,33 @@ int exprTrigram(expr **ppExpr, trilite_vtab *pTrgVtab, trilite_trigram trigram){
 
   sqlite3_blob *pBlob;
   char *zTable = sqlite3_mprintf("%s_index", pTrgVtab->zName);
-  // Open the blob
+  /* Open the blob */
   rc = sqlite3_blob_open(pTrgVtab->db, pTrgVtab->zDb, zTable, "doclist", trigram, 0, &pBlob);
   sqlite3_free(zTable);
 
-  // If we didn't get a blob
+  /* If we didn't get a blob */
   if(rc != SQLITE_OK){
     *ppExpr = NULL;
     return SQLITE_OK;
   }
-  // Get size of blob
+  /* Get size of blob */
   int nSize = sqlite3_blob_bytes(pBlob);
 
-  // Allocate space for expr and doclist at the same time
+  /* Allocate space for expr and doclist at the same time */
   *ppExpr = (expr*)sqlite3_malloc(sizeof(expr) + nSize);
 
-  // Set the expr
+  /* Set the expr */
   (*ppExpr)->eType                 = EXPR_TRIGRAM;
   (*ppExpr)->expr.trigram.docList  = ((unsigned char*)(*ppExpr)) + sizeof(expr);
   (*ppExpr)->expr.trigram.nSize    = nSize;
 
-  // Read doclist into memory
+  /* Read doclist into memory */
   sqlite3_blob_read(pBlob, (*ppExpr)->expr.trigram.docList, nSize, 0);
 
-  // Release blob
+  /* Release blob */
   sqlite3_blob_close(pBlob);
 
-  // Read first id
+  /* Read first id */
   int read = readVarInt((*ppExpr)->expr.trigram.docList, &(*ppExpr)->expr.trigram.curId);
   (*ppExpr)->expr.trigram.curId   += DELTA_LIST_OFFSET;
   (*ppExpr)->expr.trigram.nSize   -= read;
