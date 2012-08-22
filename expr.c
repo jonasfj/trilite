@@ -60,9 +60,9 @@ int exprParsePatterns(expr **ppExpr, bool *pAll, trilite_vtab *pTrgVtab, int arg
     /* Release and return on error, error message is already set */
     if(rc != SQLITE_OK) goto abort;
     /* If one of the and conditions fails, we're done */
-    if(!pExpr && !pAll) goto abort;
+    if(!pExpr && !*pAll) goto abort;
     /* If matches all continue */
-    if(!pExpr && pAll) continue;
+    if(!pExpr && *pAll) continue;
     /* Combine with an AND */
     if(*ppExpr)
       rc = exprOperator(ppExpr, *ppExpr, pExpr, EXPR_AND);
