@@ -27,12 +27,15 @@ typedef uint32_t trilite_trigram;
 /* Notes */
 /* 200MiB         6 mins */
 
+/** Really stupid case folding */
+#define LOWER(a)          ('A' <= a && a <= 'Z' ? a + 'a' - 'A' : a)
+
 /** Compute a unique 32 bit hash of a trigram
  * We use this hash as rowid for the document lists.
  */
-#define HASH_TRIGRAM(str)   ( (((trilite_trigram)(str)[0]))                    \
-                            | (((trilite_trigram)(str)[1]) << BITSPERBYTE)     \
-                            | (((trilite_trigram)(str)[2]) << (BITSPERBYTE*2)) )
+#define HASH_TRIGRAM(str)   ( (((trilite_trigram)LOWER((str)[0])))                    \
+                            | (((trilite_trigram)LOWER((str)[1])) << BITSPERBYTE)     \
+                            | (((trilite_trigram)LOWER((str)[2])) << (BITSPERBYTE*2)) )
 
 
 /** Maximum value of an sqlite3_int64 */
