@@ -32,6 +32,31 @@ To sum this up do **NOT** use TriLite in a production environment, unless you
 are me. Currently TriLite can do a few tricks as outlined in `test.sql`,
 which you can pipe to `sqlite3` after building TriLite.
 
+
+Things To Do
+============
+   - Add reference counted regular expression -> compiled expression cache to vtable
+   - Add rowid, column -> first match cache to regular expression cache entries
+   - Support multiple columns of different types
+      - Alias rowid, with PRIMARY INTEGER KEY
+      - Auxiliary non-indexed columns (useful for storing extents and file id)
+      - Indexed text columns (useful for tname and tqualname)
+   - Handle extents for expressions with the empty string in the language
+   - Limit number of extents returned per file by queries
+   - Facilitate update/delete
+   - Use a hash set to optimize extraction of unique trigrams
+   - Optimize temporary hash table
+   - Query documents inserted in the same transaction, ie. before commit as currently required
+   - Table specific options, configurable at runtime not compile time
+      - Forbid full table scan with MATCH using regular expressions
+      - Max pending insert cache (bytes)
+      - Max pending insert list
+      - Max pending delete cache (bytes)
+      - Max pending delete list
+   - Handle LIKE/GLOB patterns (ie. case (in)sensitive ordered substrings)
+   - Write Documentation
+
+
 Credits
 =======
 TriLite would not been as fast without these awesome projects.
