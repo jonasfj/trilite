@@ -1,23 +1,26 @@
 CFLAGS	:= -Ire2/ $(shell pkg-config --cflags sqlite3) -Wall -fPIC -ansi
 LDFLAGS := -Lre2/obj -lre2 $(shell pkg-config --libs sqlite3) -shared
-SOURCES := kmp.c scanstr.c varint.c hash.c expr.c match.c regexp.cpp cursor.c vtable.c trilite.c
-OBJECTS := $(patsubst %.cpp,%.o,$(patsubst %.c,%.o,$(SOURCES))) 
+SOURCES :=  cursor.c hash.c pattern.c trilite.c varint.c vtable.c
+OBJECTS := $(patsubst %.cpp,obj/%.o,$(patsubst %.c,obj/%.o,$(SOURCES))) 
 all: debug
 debug: CFLAGS += -g
-debug: re2 libtrilite.so
+debug: re2 bin/libtrilite.so
 release: CFLAGS += -DNDEBUG -O3 -flto
 release: LDFLAGS += -flto -O3
-release: re2 libtrilite.so
+release: re2 bin/libtrilite.so
 re2:
 	hg clone https://re2.googlecode.com/hg re2
 	$(MAKE) -C re2 CXXFLAGS='-Wall -O3 -pthread -fPIC'
-%.o: %.cpp
+obj/%.o: src/%.cpp
+	@mkdir -p $(@D)
 	$(CXX) $(CFLAGS) -c $< -o $@
-%.o: %.c
+obj/%.o: src/%.c
+	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) -c $< -o $@
-libtrilite.so: $(OBJECTS)
+bin/libtrilite.so: $(OBJECTS)
+	@mkdir -p $(@D)
 	$(CXX) $? $(LDFLAGS) -o $@
 clean:
-	rm -rf libtrilite.so $(OBJECTS)
+	rm -rf bin/ obj/
 dist-clean:
-	rm -rf libtrilite.so $(OBJECTS) re2/
+	rm -rf bin/ obj/ re2/

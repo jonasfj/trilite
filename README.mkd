@@ -12,8 +12,8 @@ documents containing all the trigrams are matched against the substring and
 returned if considered a result.
 
 The approach is pretty much
-[How Google Code Search Worked](http://swtch.com/~rsc/regexp/regexp4.html),
-and similar to the [pg_trgm](http://www.postgresql.org/docs/9.1/static/pgtrgm.html)
+[How Google Code Search Worked](http://swtch.com/~rsc/regexp/regexp4.html), and
+similar to the [pg_trgm](http://www.postgresql.org/docs/9.1/static/pgtrgm.html)
 module for PostgreSQL. See related work for more information.
 
 License
@@ -35,8 +35,22 @@ which you can pipe to `sqlite3` after building TriLite.
 
 Things To Do
 ============
-   - Add reference counted regular expression -> compiled expression cache to vtable
-   - Add rowid, column -> first match cache to regular expression cache entries
+   - Cleanup header file mess
+      + Define internal interface (structs and functions) in triliteInt.h
+      + Functions not in triliteInt.h should be `static`
+      + Remove all the other header files (including `config.h`)
+      + Define trilite expression and trilite pattern interface
+        in `trilite_pattern.h` (ie. things need for plugins)
+   - Refactor a trigram expression
+      - Variable number of elements in OR/AND expressions
+      - Support for ANY expression
+      - Cleaner evaluation API
+   - Pattern parsers
+      - Global function to register pattern parser
+      - Needs pattern parser vtable
+      - Base class is reference counted
+      - Supports create, destroy, extract trigram expression, match and extents
+      - Define error handling
    - Support multiple columns of different types
       - Alias rowid, with PRIMARY INTEGER KEY
       - Auxiliary non-indexed columns (useful for storing extents and file id)
@@ -46,7 +60,7 @@ Things To Do
    - Facilitate update/delete
    - Use a hash set to optimize extraction of unique trigrams
    - Optimize temporary hash table
-   - Query documents inserted in the same transaction, ie. before commit as currently required
+   - Query documents inserted in the same transaction
    - Table specific options, configurable at runtime not compile time
       - Forbid full table scan with MATCH using regular expressions
       - Max pending insert cache (bytes)
@@ -55,6 +69,16 @@ Things To Do
       - Max pending delete list
    - Handle LIKE/GLOB patterns (ie. case (in)sensitive ordered substrings)
    - Write Documentation
+
+
+Hacking
+=======
+The code assimilates SQLite code style, with `/**` to mark the beginning of a
+documentation comment and `/*` for normal comment. TriLite is written in ANSI C.
+Internal structures, functions and contants shared between compilation units are
+declared in `triliteInt.h` and documentated at their definition. The public
+structures, functions and constants are declared and documented in a separate
+header file, relevant for the specific interface.
 
 
 Credits
@@ -71,7 +95,8 @@ Other projects with similar aim,
 
   * [How Google Code Search Worked](http://swtch.com/~rsc/regexp/regexp4.html)
     in particular [the standalone engine](https://code.google.com/p/codesearch/)
-  * [Index support for regular expression search](http://www.pgcon.org/2012/schedule/events/383.en.html)
+  * [Index support for regular expression search
+    ](http://www.pgcon.org/2012/schedule/events/383.en.html)
     presentation at PostgreSQL conference 2012.
   * [pg_trgm](http://www.postgresql.org/docs/9.1/static/pgtrgm.html) trigram
     module for PostgreSQL, accelerating `LIKE` queries.

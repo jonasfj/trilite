@@ -1,9 +1,4 @@
-#include "varint.h"
-#include "config.h"
-
-const sqlite3_api_routines *sqlite3_api;
-
-#include <stdint.h>
+#include "triliteInt.h"
 
 #define VARINT_END_BITMASK          (1 << (BITSPERBYTE - 1))
 
@@ -11,10 +6,12 @@ const sqlite3_api_routines *sqlite3_api;
  * Returns number of bytes read.
  */
 int readVarInt(unsigned char *pBuf, sqlite3_int64 *out){
-  /* Yes, it's ugly to unroll a loop manually, I didn't test to see if it's */
-  /* faster, it was just easier to write it this way without having unecessary */
-  /* checks all over the place. Also I don't see any reason to waste time */
-  /* designing a smart loop, when this works, and probably is faster :) */
+  /* Yes, it's ugly to unroll a loop manually, I didn't test to see if it's
+   * faster, it was just easier to write it this way without having unecessary
+   * checks all over the place. Also I don't see any reason to waste time
+   * designing a smart loop, when this works, and probably is faster :)
+   * TODO: Test if it's faster binary branching and then write everything in one block
+   */
   *out = 0;
   /* Read byte 0 */
   *out |= (sqlite3_int64)(pBuf[0] & ~VARINT_END_BITMASK);
@@ -46,7 +43,8 @@ int readVarInt(unsigned char *pBuf, sqlite3_int64 *out){
 }
 
 /** Write an integer in varint encoding to pBuf
- * Returns number of bytes written */
+ * Returns number of bytes written
+ */
 int writeVarInt(unsigned char *pBuf, sqlite3_int64 input){
   /* Write byte 0 */
   pBuf[0] = ((unsigned char)input) & ~VARINT_END_BITMASK;
