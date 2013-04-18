@@ -4,12 +4,13 @@ SOURCES := kmp.c scanstr.c varint.c hash.c expr.c match.c regexp.cpp cursor.c vt
 OBJECTS := $(patsubst %.cpp,%.o,$(patsubst %.c,%.o,$(SOURCES))) 
 all: debug
 debug: CFLAGS += -g
-debug: re2 libtrilite.so
-release: CFLAGS += -DNDEBUG -O3 -flto
-release: LDFLAGS += -flto -O3
-release: re2 libtrilite.so
+debug: re2 re2/obj/libre2.a libtrilite.so
+release: CFLAGS += -DNDEBUG -O3
+release: LDFLAGS += -O3
+release: re2/obj/libre2.a libtrilite.so
 re2:
 	hg clone https://re2.googlecode.com/hg re2
+re2/obj/libre2.a: re2
 	$(MAKE) -C re2 CXXFLAGS='-Wall -O3 -pthread -fPIC'
 %.o: %.cpp
 	$(CXX) $(CFLAGS) -c $< -o $@
