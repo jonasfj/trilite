@@ -83,7 +83,7 @@ int regexpPreFilter(expr **ppExpr, bool *pAll, trilite_vtab *pTrgVtab, const uns
         msg = "Missing bracket in '%s'";
         break;
       case re2::RE2::ErrorMissingParen:
-        msg = "Missing paranthesis in '%s'";
+        msg = "Missing parenthesis in '%s'";
         break;
       case re2::RE2::ErrorTrailingBackslash:
         msg = "Trailing backslash in '%s'";
