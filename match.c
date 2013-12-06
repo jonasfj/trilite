@@ -8,6 +8,8 @@ const sqlite3_api_routines *sqlite3_api;
 #include "regexp.h"
 
 #include <assert.h>
+
+#define _GNU_SOURCE
 #include <string.h>
 
 typedef enum pattern_type pattern_type;
@@ -21,7 +23,9 @@ enum pattern_type{
   /** Regular expression pattern */
   PATTERN_REGEXP    = 1<<2,
   /** Flag set if extents should be computed */
-  PATTERN_EXTENTS   = 1<<3
+  PATTERN_EXTENTS   = 1<<3,
+  /** Case-insensitive substring pattern */
+  PATTERN_ISUBSTR   = 1<<4
 };
 
 typedef struct aux_pattern_data aux_pattern_data;
@@ -66,10 +70,18 @@ void matchCreate(aux_pattern_data **ppAuxData, const unsigned char *pattern, int
     (*ppAuxData)->eType     = PATTERN_SUBSTR;
     (*ppAuxData)->pRegExp   = NULL;
     offset                  = 7;
+  }else if(strncmp((const char*)pattern, "isubstr:", 8) == 0){
+    (*ppAuxData)->eType     = PATTERN_ISUBSTR;
+    (*ppAuxData)->pRegExp   = NULL;
+    offset                  = 8;
   }else if(strncmp((const char*)pattern, "substr-extents:", 15) == 0){
     (*ppAuxData)->eType     = PATTERN_SUBSTR | PATTERN_EXTENTS;
     (*ppAuxData)->pRegExp   = NULL;
     offset                  = 15;
+  }else if(strncmp((const char*)pattern, "isubstr-extents:", 16) == 0){
+    (*ppAuxData)->eType     = PATTERN_ISUBSTR | PATTERN_EXTENTS;
+    (*ppAuxData)->pRegExp   = NULL;
+    offset                  = 16;
   }else if(strncmp((const char*)pattern, "regexp:", 7) == 0){
     (*ppAuxData)->eType = PATTERN_REGEXP;
     int rc              = regexpCompile(&(*ppAuxData)->pRegExp, pattern + 7, nPattern - 7);
@@ -155,6 +167,16 @@ void matchFunction(sqlite3_context* pCtx, int argc, sqlite3_value** argv){
         start = scanstr(end, nText - (end - text), pAuxData->pattern, pAuxData->nPattern);
       }
     }
+  } else if(pAuxData->eType & PATTERN_ISUBSTR){
+    const unsigned char *start = strcasestr(text, pAuxData->pattern);
+    retval = start != NULL;
+    if(pAuxData->eType & PATTERN_EXTENTS){
+      while(start){
+        const unsigned char *end = start + pAuxData->nPattern;
+        triliteAddExtents(pTrgCur, start - text, end - text);
+        start = strcasestr(end, pAuxData->pattern);
+    }
+  }
   } else if(pAuxData->eType == PATTERN_REGEXP){
     assert(pAuxData->pRegExp);
     retval = regexpMatch(pAuxData->pRegExp, text, nText);
@@ -178,6 +200,3 @@ void matchFunction(sqlite3_context* pCtx, int argc, sqlite3_value** argv){
     sqlite3_result_int(pCtx, 0);
   }
 }
-
-
-
