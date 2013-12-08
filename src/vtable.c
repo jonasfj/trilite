@@ -43,9 +43,9 @@ static int triliteParse(
   int              nTextCols = 0;                /* Number of text columns */
 
   /***************************** Parse Arguments ******************************/
-  log("Arguments for %s:", zName);
+  LOG("Arguments for %s:", zName);
   for(i = 3; i < iArgc; i++){
-    log("  pArgv[%i] = '%s'", i, pArgv[i]);
+    LOG("  pArgv[%i] = '%s'", i, pArgv[i]);
     /* pArgv is a list of arguments on the form:
      * Argument ::= Column | Setting
      * Column   ::= <name> <type>
@@ -186,7 +186,7 @@ static int triliteParse(
       zDb, zName, zCols);
     
     /* Execute statment */
-    log("Create _data table: \"%s\"", zSql);
+    LOG("Create _data table: \"%s\"", zSql);
     rc = sqlite3_exec(db, zSql, NULL, NULL, pzErr);
     sqlite3_free(zSql);
     zSql = NULL;
@@ -211,7 +211,7 @@ static int triliteParse(
         zDb, zName, i);
 
       /* Execute statment */
-      log("Create _idx table: \"%s\"", zSql);
+      LOG("Create _idx table: \"%s\"", zSql);
       rc = sqlite3_exec(db, zSql, NULL, NULL, pzErr);
       sqlite3_free(zSql);
       zSql = NULL;
@@ -253,7 +253,7 @@ static int triliteParse(
   zSql = sqlite3_mprintf("%z);", zSql);
 
   /* Declare virtual table interface */
-  log("Declare virtual table: \"%s\"", zSql);
+  LOG("Declare virtual table: \"%s\"", zSql);
   rc = sqlite3_declare_vtab(db, zSql);
   sqlite3_free(zSql);
   zSql = NULL;
@@ -322,7 +322,7 @@ int triliteCreate(
   char                **pzErr         /** OUT: Error messages */
 ){
   UNUSED_PARAMETER(pAux);
-  log("Creating trilite table");
+  LOG("Creating trilite table");
   return triliteParse(db, iArgc, pArgv, true, (trilite_vtab**)ppVTab, pzErr);
 }
 
@@ -344,7 +344,7 @@ int triliteConnect(
   char                **pzErr         /** OUT: Error messages */
 ){
   UNUSED_PARAMETER(pAux);
-  log("Connecting to trilite table");
+  LOG("Connecting to trilite table");
   return triliteParse(db, iArgc, pArgv, false, (trilite_vtab**)ppVTab, pzErr);
 }
 
@@ -356,7 +356,7 @@ int triliteConnect(
 int triliteDisconnect(
   sqlite3_vtab        *pVTab          /** Virtual table */
 ){
-  log("Disconnecting trilite table");
+  LOG("Disconnecting trilite table");
  /* TODO: Implement this */
   assert(false);
   return SQLITE_INTERNAL;

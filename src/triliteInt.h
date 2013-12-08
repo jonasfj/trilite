@@ -246,6 +246,13 @@ int exprNext(trilite_expression**, bool*, bool*, sqlite3_int64*);
 int exprDestroy(trilite_expression*);
 
 
+/**************************** Functions in utils.c ****************************/
+void extractTrigrams(const char*, int, trilite_trigram**, int*);
+void sortTrigrams(trilite_trigram*, int, int);
+#ifndef NDEBUG
+bool isFunctionToLog(const char*);
+#endif /* NDEBUG */
+
 /******************************** Debug Macros ********************************/
 
 #ifndef NDEBUG
@@ -256,30 +263,26 @@ int exprDestroy(trilite_expression*);
     "triliteConnect",         /* Open database connection */                  \
     "triliteDisconnect",      /* Close database connection */                 \
     "triliteParse",           /* Virtual table declaration parser */          \
- /* __func__,                  * Any function */                              \
+ /* "hash*"                   /* All functions starting with hash */          \
+ /* "*",                      /* Any function */                              \
     NULL                      /* End of list */                               \
   }
 
-/* Log messages, if current function is in the list of FUNCTIONS_TO_LOG */
-#define log(...)                                                              \
+
+/** Log messages, if the current function is in the list of FUNCTIONS_TO_LOG */
+#define LOG(...)                                                              \
   do{                                                                         \
-    char* __TRILITE_INT_H__funcs[] = FUNCTIONS_TO_LOG;                        \
-    int __TRILITE_INT_H__i = 0;                                               \
-    while(__TRILITE_INT_H__funcs[__TRILITE_INT_H__i] != NULL){                \
-      if(strcmp(__func__, __TRILITE_INT_H__funcs[__TRILITE_INT_H__i]) == 0){  \
-        fprintf(stderr, "%s:%i ", __func__, __LINE__);                        \
-        fprintf(stderr, __VA_ARGS__);                                         \
-        fprintf(stderr, "\n");                                                \
-        break;                                                                \
-      }                                                                       \
-      __TRILITE_INT_H__i++;                                                   \
+    if(isFunctionToLog(__func__)){                                            \
+      fprintf(stderr, "%s:%i ", __func__, __LINE__);                          \
+      fprintf(stderr, __VA_ARGS__);                                           \
+      fprintf(stderr, "\n");                                                  \
     }                                                                         \
   }while(false)
 
 #else  /* NDEBUG */
 
-/* Ignore all calls to log, if NDEBUG is defined */
-#define log(...)              ((void)0)
+/** Ignore all calls to log, if NDEBUG is defined */
+#define LOG(...)              ((void)0)
 
 #endif /* NDEBUG */
 
