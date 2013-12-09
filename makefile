@@ -18,6 +18,13 @@ re2/obj/libre2.a: re2
 	$(CC) $(CFLAGS) -c $< -o $@
 libtrilite.so: $(OBJECTS)
 	$(CXX) $? $(LDFLAGS) -o $@
+check: all
+	cat test.sql | sqlite3 -bail; \
+	if [ "$$?" -eq "0" ]; then \
+		echo "Test passed"; \
+	else \
+		echo "Test failed!"; \
+	fi
 clean:
 	rm -rf libtrilite.so $(OBJECTS)
 dist-clean:
