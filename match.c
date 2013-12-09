@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include "match.h"
 
 const sqlite3_api_routines *sqlite3_api;
@@ -9,7 +10,6 @@ const sqlite3_api_routines *sqlite3_api;
 
 #include <assert.h>
 
-#define _GNU_SOURCE
 #include <string.h>
 
 typedef enum pattern_type pattern_type;
@@ -168,13 +168,13 @@ void matchFunction(sqlite3_context* pCtx, int argc, sqlite3_value** argv){
       }
     }
   } else if(pAuxData->eType & PATTERN_ISUBSTR){
-    const unsigned char *start = strcasestr(text, pAuxData->pattern);
+    const char *start = strcasestr((const char*)text, (const char*)pAuxData->pattern);
     retval = start != NULL;
     if(pAuxData->eType & PATTERN_EXTENTS){
       while(start){
-        const unsigned char *end = start + pAuxData->nPattern;
-        triliteAddExtents(pTrgCur, start - text, end - text);
-        start = strcasestr(end, pAuxData->pattern);
+        const char *end = start + pAuxData->nPattern;
+        triliteAddExtents(pTrgCur, start - (const char*)text, end - (const char*)text);
+        start = strcasestr(end, (const char*)pAuxData->pattern);
     }
   }
   } else if(pAuxData->eType == PATTERN_REGEXP){
