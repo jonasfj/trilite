@@ -160,7 +160,7 @@ void matchFunction(sqlite3_context* pCtx, int argc, sqlite3_value** argv){
     const unsigned char *start = scanstr(text, nText, pAuxData->pattern, pAuxData->nPattern);
     retval = start != NULL;
     /* If output extents is requested */
-    if(pAuxData->eType & PATTERN_EXTENTS){
+    if(pAuxData->eType & PATTERN_EXTENTS && pAuxData->nPattern > 0){
       while(start){
         const unsigned char *end = start + pAuxData->nPattern;
         triliteAddExtents(pTrgCur, start - text, end - text);
@@ -170,13 +170,13 @@ void matchFunction(sqlite3_context* pCtx, int argc, sqlite3_value** argv){
   } else if(pAuxData->eType & PATTERN_ISUBSTR){
     const char *start = strcasestr((const char*)text, (const char*)pAuxData->pattern);
     retval = start != NULL;
-    if(pAuxData->eType & PATTERN_EXTENTS){
+    if(pAuxData->eType & PATTERN_EXTENTS && pAuxData->nPattern > 0){
       while(start){
         const char *end = start + pAuxData->nPattern;
         triliteAddExtents(pTrgCur, start - (const char*)text, end - (const char*)text);
         start = strcasestr(end, (const char*)pAuxData->pattern);
+      }
     }
-  }
   } else if(pAuxData->eType == PATTERN_REGEXP){
     assert(pAuxData->pRegExp);
     retval = regexpMatch(pAuxData->pRegExp, text, nText);

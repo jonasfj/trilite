@@ -86,7 +86,7 @@ int exprParse(expr **ppExpr, bool *pAll, trilite_vtab *pTrgVtab, const unsigned 
   if(strncmp((const char*)pattern, "substr:", 7) == 0){
     return exprSubstring(ppExpr, pAll, pTrgVtab, pattern + 7, nPattern - 7);
   }else if(strncmp((const char*)pattern, "isubstr:", 8) == 0){
-     return exprSubstring(ppExpr, pAll, pTrgVtab, pattern + 8, nPattern - 8);
+    return exprSubstring(ppExpr, pAll, pTrgVtab, pattern + 8, nPattern - 8);
   }else if(strncmp((const char*)pattern, "substr-extents:", 15) == 0){
     return exprSubstring(ppExpr, pAll, pTrgVtab, pattern + 15, nPattern - 15);
   }else if(strncmp((const char*)pattern, "isubstr-extents:", 16) == 0){

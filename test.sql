@@ -22,3 +22,4 @@ select *, hex(extents(contents)) from trg WHERE contents MATCH 'substr-extents:a
 select "Testing isubstr:";
 select * from trg WHERE contents MATCH 'isubstr-extents:aBc';
 ;
+select text from trg where contents MATCH 'substr-extents:' AND id = 1;
