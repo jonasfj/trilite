@@ -82,7 +82,7 @@ int triliteConnect(sqlite3 *db, void *pAux, int argc, const char *const *argv, s
   pTrgVtab->db = db;
 
   /* Default values for various settings */
-  pTrgVtab->forbidFullMatchScan = false;
+  pTrgVtab->forbidFullMatchScan = true;
   pTrgVtab->maxRegExpMemory     = 8<<20;  /* About 8 MiB */
   
   /* Prepare sql statements */
