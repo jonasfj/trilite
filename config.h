@@ -6,13 +6,13 @@
 
 /* Simple log macro for easy debuggin */
 #ifndef NDEBUG
-#define log(...)   do{                                                        \
+#define trilite_log(...)   do{                                                        \
                             fprintf(stderr, "%s:%i: ", __FILE__, __LINE__);   \
                             fprintf(stderr, __VA_ARGS__);                     \
                             fprintf(stderr, "\n");                            \
                           }while(0)
 #else
-#define log(...)   ((void)0)
+#define trilite_log(...)   ((void)0)
 #endif
 
 

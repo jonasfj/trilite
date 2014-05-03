@@ -41,6 +41,8 @@ static const sqlite3_module triliteModule = {
 int sqlite3_extension_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines *pApi){
   int rc = SQLITE_OK;
 
+  printf("Got init call\n");
+
   /* Initialize the extension API */
   SQLITE_EXTENSION_INIT2(pApi);
 
@@ -50,12 +52,14 @@ int sqlite3_extension_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routi
   /* Create module */
   rc = sqlite3_create_module(db, "trilite", &triliteModule, 0);
 
+  printf("Error code %d\n", rc);
   return rc;
 }
 
 /* Entry point for applications loading this module,
  * This will load the module */
 void load_trilite_extension(){
+  printf("Calling sqlite3_auto_extension\n");
   sqlite3_auto_extension((void(*)(void))sqlite3_extension_init);
 }
 
