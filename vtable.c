@@ -156,7 +156,7 @@ int triliteUpdate(sqlite3_vtab* pVtab, int argc, sqlite3_value **argv, sqlite_in
 
   /* Delete row argv[0] */
   if(argc == 1){
-    log("Deleting row: %lli", sqlite3_value_int64(argv[0]));
+    trilite_log("Deleting row: %lli", sqlite3_value_int64(argv[0]));
   
     /* Remove text from index */
     rc = indexRemoveText(pTrgVtab, sqlite3_value_int64(argv[0]));
@@ -189,7 +189,7 @@ int triliteUpdate(sqlite3_vtab* pVtab, int argc, sqlite3_value **argv, sqlite_in
     /* Output rowid */
     *pRowid = sqlite3_last_insert_rowid(pTrgVtab->db);
     
-    log("Inserted row, got id: %lli", *pRowid);
+    trilite_log("Inserted row, got id: %lli", *pRowid);
     
     /* Add to text index */
     rc = indexAddText(pTrgVtab, *pRowid, argv[3]);
@@ -216,7 +216,7 @@ int triliteUpdate(sqlite3_vtab* pVtab, int argc, sqlite3_value **argv, sqlite_in
     sqlite3_clear_bindings(pTrgVtab->stmt_update_content);
     if(rc != SQLITE_OK) return rc;
     
-    log("Updated row: %lli (new id: %lli)", sqlite3_value_int64(argv[0]), sqlite3_value_int64(argv[1]));
+    trilite_log("Updated row: %lli (new id: %lli)", sqlite3_value_int64(argv[0]), sqlite3_value_int64(argv[1]));
     
     /* Add to text index */
     rc = indexAddText(pTrgVtab, sqlite3_value_int64(argv[1]), argv[2]);
@@ -230,7 +230,7 @@ int triliteUpdate(sqlite3_vtab* pVtab, int argc, sqlite3_value **argv, sqlite_in
 
 /** Begin transaction, necessary to ensure that triliteCommit is called */
 int triliteBegin(sqlite3_vtab *pVtab){
-  log(" -- BEGIN TRANSACTION -- ");
+  trilite_log(" -- BEGIN TRANSACTION -- ");
   return SQLITE_OK;
 }
 
@@ -249,14 +249,14 @@ int triliteSync(sqlite3_vtab *pVtab){
   hash_table_cursor *pCur;
   hashOpen(pTrgVtab->pAdded, &pCur);
 
-  log(" -- SYNC TRANSACTION -- ");
+  trilite_log(" -- SYNC TRANSACTION -- ");
 
   trilite_trigram trigram;
   sqlite_int64 *ids;
   int nIds;
   while(hashPop(pCur, &trigram, &ids, &nIds)){
     rc = saveDocList(pTrgVtab, trigram, ids, nIds);
-    log("save: %i, nids: %i", trigram, nIds);
+    trilite_log("save: %i, nids: %i", trigram, nIds);
     assert(rc == SQLITE_OK);
   }
 
@@ -269,7 +269,7 @@ int triliteSync(sqlite3_vtab *pVtab){
 
 /** Commit pending changes to doclists */
 int triliteCommit(sqlite3_vtab *pVtab){
-  log(" -- END TRANSACTION -- ");
+  trilite_log(" -- END TRANSACTION -- ");
   return SQLITE_OK;
 }
 
@@ -287,15 +287,15 @@ int triliteBestIndex(sqlite3_vtab *pVtab, sqlite3_index_info *pInfo){
   pInfo->idxNum         = IDX_FULL_SCAN;
   pInfo->estimatedCost  = COST_FULL_SCAN;
 
-  log("Computing best index:");
+  trilite_log("Computing best index:");
 
   int i;
   for(i = 0; i < pInfo->nConstraint; i++){
     /* Log the constraint for debugging */
-    log("------- Constraint:");
-    log("Column: %i", pInfo->aConstraint[i].iColumn);
-    log("Op:     %i", pInfo->aConstraint[i].op);
-    log("Usable: %i", pInfo->aConstraint[i].usable);
+    trilite_log("------- Constraint:");
+    trilite_log("Column: %i", pInfo->aConstraint[i].iColumn);
+    trilite_log("Op:     %i", pInfo->aConstraint[i].op);
+    trilite_log("Usable: %i", pInfo->aConstraint[i].usable);
   
     /* Skip constraints we can't use */
     if(!pInfo->aConstraint[i].usable) continue;
@@ -346,9 +346,9 @@ int triliteBestIndex(sqlite3_vtab *pVtab, sqlite3_index_info *pInfo){
   /* in case some idiot thinks it makes sense to order by both */
   /* id and rowid, although they are the same */
   for(i = pInfo->nOrderBy - 1; i >= 0; i--){
-    log("------- Order By:");
-    log("Column: %i", pInfo->aOrderBy[i].iColumn);
-    log("DESC:   %i", pInfo->aOrderBy[i].desc);
+    trilite_log("------- Order By:");
+    trilite_log("Column: %i", pInfo->aOrderBy[i].iColumn);
+    trilite_log("DESC:   %i", pInfo->aOrderBy[i].desc);
     /* Anything on id we can consume */
     if(pInfo->aOrderBy[i].iColumn < 1){
       pInfo->orderByConsumed = 1;
@@ -503,7 +503,7 @@ static int indexAddText(trilite_vtab *pTrgVtab, sqlite3_int64 id, sqlite3_value 
   /* Don't insert anything for empty texts */
   if(nText == 0) return SQLITE_OK;
   
-  log("Adding docid: %lli to index with '%s'", id, zText);
+  trilite_log("Adding docid: %lli to index with '%s'", id, zText);
   
   /* List of trigrams seen so far (Just allocate plenty of memory) */
   uint32_t *trigrams = (uint32_t*)sqlite3_malloc(sizeof(uint32_t) * nText);
@@ -521,7 +521,7 @@ static int indexAddText(trilite_vtab *pTrgVtab, sqlite3_int64 id, sqlite3_value 
       if(trigrams[i] == trigram) break;
     if(i < nTrigrams) continue;
     
-    log("Found new trigram '%c%c%c'", zText[pos], zText[pos + 1], zText[pos + 2]);
+    trilite_log("Found new trigram '%c%c%c'", zText[pos], zText[pos + 1], zText[pos + 2]);
     
     /* Add trigram to list of trigrams */
     trigrams[nTrigrams++] = trigram;
@@ -691,7 +691,7 @@ static int prepareSql(trilite_vtab *pTrgVtab){
 /** Finalize sql statement, release memory */
 static int finalizeSql(trilite_vtab *pTrgVtab){
   int rc = SQLITE_OK;
-  log("Releasing statements");
+  trilite_log("Releasing statements");
 
   /* Delete from %_content */
   rc = sqlite3_finalize(pTrgVtab->stmt_delete_content);
